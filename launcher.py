@@ -324,19 +324,16 @@ class App:
         win.resizable(False, False)
         win.transient(self.root)
         win.grab_set()
-        w, h = 380, 384
+        w, h = 380, 344
         x = self.root.winfo_x() + (400 - w) // 2
         y = max(60, self.root.winfo_y() - 30)
         win.geometry(f"{w}x{h}+{x}+{y}")
 
         tk.Label(win, text="连接路由器", bg=BG, fg=TEXT,
-                 font=("Microsoft YaHei UI", 12, "bold")).pack(anchor="w", padx=22, pady=(18, 2))
-        tk.Label(win, text="需要先在路由器后台开启 SSH（小米：常用设置 → 安全设置 → SSH）",
-                 bg=BG, fg=MUTED, font=("Microsoft YaHei UI", 9), wraplength=336,
-                 justify="left").pack(anchor="w", padx=22)
+                 font=("Microsoft YaHei UI", 12, "bold")).pack(anchor="w", padx=22, pady=(20, 0))
 
         form = tk.Frame(win, bg=BG)
-        form.pack(fill="x", padx=22, pady=(12, 0))
+        form.pack(fill="x", padx=22, pady=(16, 0))
         entries = {}
         fields = [
             ("host", "路由器地址", router.get("host") or "192.168.31.1"),
