@@ -1,0 +1,27 @@
+{
+  "router": {
+    "host": "",
+    "port": 22,
+    "username": "root",
+    "password": ""
+  },
+  "poll_interval": 10,
+  "wan_iface": "",
+  "lan_subnets": [
+    "192.168.31.0/24"
+  ],
+  "ignore_peer_cidrs": [
+    "198.18.0.0/15"
+  ],
+  "service_overrides": {},
+  "http": {
+    "host": "127.0.0.1",
+    "port": 8787,
+    "open_browser": true
+  },
+  "storage": {
+    "db": "data/traffic.db",
+    "keep_days": 90,
+    "keep_raw_hours": 24
+  }
+}

@@ -1,0 +1,24 @@
+# 凭据与本地数据（绝不提交）
+config.json
+data/
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 打包产物
+dist/
+build/
+*.manifest
+
+# 测试/截图临时文件
+shot_*.png
+launcher_shot.png
+exe_shot.png
+*.tmp

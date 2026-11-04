@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>路由器流量监控</title>
+<link rel="stylesheet" href="/static/style.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234c8dff'/><path d='M8 20h16M8 12h16' stroke='%23fff' stroke-width='3' stroke-linecap='round'/></svg>" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="8" fill="#4c8dff"/>
+      <path d="M9 20h14M9 12h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="12" cy="20" r="2.2" fill="#0b0e14"/>
+      <circle cx="20" cy="12" r="2.2" fill="#0b0e14"/>
+    </svg>
+    <div class="brand-text">
+      <h1>路由器流量监控</h1>
+      <span class="sub" id="routerSub">正在读取路由器信息…</span>
+    </div>
+  </div>
+  <div class="status-area">
+    <span class="pill" id="connPill"><i class="dot"></i><span id="connText">连接中</span></span>
+    <span class="poll-meta" id="pollMeta">—</span>
+    <button class="btn ghost" id="btnReconnect" title="断开并重新建立 SSH 连接">重连</button>
+    <button class="btn ghost" id="btnSettings">设置</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="overview">概览</button>
+  <button class="tab" data-tab="devices">设备</button>
+  <button class="tab" data-tab="services">服务</button>
+  <button class="tab" data-tab="history">历史</button>
+  <button class="tab" data-tab="diag">诊断</button>
+</nav>
+
+<main>
+  <!-- ===================== 概览 ===================== -->
+  <section class="panel-page active" id="page-overview">
+    <div class="cards">
+      <div class="card stat">
+        <div class="stat-head"><span class="label">实时下行</span><span class="badge down">WAN</span></div>
+        <div class="stat-value" id="vDown">—</div>
+        <div class="stat-foot" id="vDownFoot">峰值 —</div>
+      </div>
+      <div class="card stat">
+        <div class="stat-head"><span class="label">实时上行</span><span class="badge up">WAN</span></div>
+        <div class="stat-value" id="vUp">—</div>
+        <div class="stat-foot" id="vUpFoot">峰值 —</div>
+      </div>
+      <div class="card stat">
+        <div class="stat-head"><span class="label">今日流量</span><span class="badge">总计</span></div>
+        <div class="stat-value" id="vToday">—</div>
+        <div class="stat-foot" id="vTodayFoot">↓ — · ↑ —</div>
+      </div>
+      <div class="card stat">
+        <div class="stat-head"><span class="label">本月流量</span><span class="badge">总计</span></div>
+        <div class="stat-value" id="vMonth">—</div>
+        <div class="stat-foot" id="vMonthFoot">↓ — · ↑ —</div>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-head">
+        <div>
+          <h2>实时流量</h2>
+          <p class="hint" id="rtHint">最近 1 小时 · 10 秒粒度</p>
+        </div>
+        <div class="seg" id="rtRange">
+          <button data-min="30">30 分钟</button>
+          <button data-min="60" class="active">1 小时</button>
+          <button data-min="180">3 小时</button>
+          <button data-min="720">12 小时</button>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--down)"></i>下行</span>
+        <span><i class="sw" style="background:var(--up)"></i>上行</span>
+        <span class="legend-note" id="rtSummary"></span>
+      </div>
+      <div class="chart-box" id="chartRealtime" style="height:300px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><h2>设备流量 Top 8</h2><p class="hint" id="topHint">今日累计</p></div>
+        <button class="btn ghost sm" data-goto="devices">查看全部</button>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="topDevices">
+          <thead><tr>
+            <th>设备</th><th>IP</th><th>接入</th>
+            <th class="num">当前下行</th><th class="num">当前上行</th>
+            <th class="num">今日下行</th><th class="num">今日上行</th>
+          </tr></thead>
+          <tbody><tr><td colspan="7" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 设备 ===================== -->
+  <section class="panel-page" id="page-devices">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2>设备流量统计</h2>
+          <p class="hint" id="devHint">按累计流量排序 · 单位自动</p>
+        </div>
+        <div class="seg" id="devPeriod">
+          <button data-period="today" class="active">今日</button>
+          <button data-period="week">本周</button>
+          <button data-period="month">本月</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="grid wide" id="deviceTable">
+          <thead><tr>
+            <th class="sortable" data-sort="online">状态</th>
+            <th class="sortable" data-sort="name">设备</th>
+            <th class="sortable" data-sort="ip">IP / MAC</th>
+            <th class="sortable" data-sort="kind">接入</th>
+            <th class="sortable num" data-sort="down_bps">当前下行</th>
+            <th class="sortable num" data-sort="up_bps">当前上行</th>
+            <th class="sortable num" data-sort="down">下行累计</th>
+            <th class="sortable num" data-sort="up">上行累计</th>
+            <th class="num">占比</th>
+            <th></th>
+          </tr></thead>
+          <tbody><tr><td colspan="10" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 服务 ===================== -->
+  <section class="panel-page" id="page-services">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2>设备访问的服务</h2>
+          <p class="hint" id="svcHint">按「目标 IP + 端口」归类，不是域名</p>
+        </div>
+        <div class="seg" id="svcRange">
+          <button data-days="0" class="active">实时</button>
+          <button data-days="1">今天</button>
+          <button data-days="7">近 7 天</button>
+          <button data-days="30">近 30 天</button>
+        </div>
+      </div>
+      <div class="filters">
+        <div class="field">
+          <label>设备</label>
+          <select id="svcDevice"><option value="">全部设备（实时）</option></select>
+        </div>
+        <div class="field actions">
+          <button class="btn ghost sm" id="svcRefresh">刷新</button>
+        </div>
+      </div>
+      <p class="svc-note">
+        数据来源：路由器 conntrack 的「目的 IP + 端口」。名称按「自定义命名 &gt; 已知服务网段 &gt; 端口语义」推断，
+        <b>标「推断」的只代表 IP 归属该网段，不代表一定是该服务</b>。本固件没有 DNS 查询日志，
+        无法可靠还原具体域名——想要准确名称，请用下方「命名」把常用 IP 段标成你自己的叫法。
+      </p>
+    </div>
+
+    <div class="cards three">
+      <div class="card mini"><span class="label">下行合计</span><b id="svcDown">—</b></div>
+      <div class="card mini"><span class="label">上行合计</span><b id="svcUp">—</b></div>
+      <div class="card mini"><span class="label">服务 / 目标</span><b id="svcCount">—</b></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><h2>服务排行</h2><p class="hint">点击任意一行可展开目标地址明细</p></div>
+      </div>
+      <div class="table-wrap">
+        <table class="grid wide" id="svcTable">
+          <thead><tr>
+            <th>服务</th><th>来源</th><th class="num">目标数</th><th class="num">连接</th>
+            <th class="num">下行</th><th class="num">上行</th><th class="num">占比</th>
+          </tr></thead>
+          <tbody><tr><td colspan="7" class="empty">加载中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" id="svcDetailCard" style="display:none">
+      <div class="card-head">
+        <div><h2 id="svcDetailTitle">明细</h2><p class="hint">该服务下的目标地址，可逐个命名</p></div>
+        <button class="btn ghost sm" id="svcDetailClose">收起</button>
+      </div>
+      <div class="table-wrap">
+        <table class="grid" id="svcDetailTable">
+          <thead><tr>
+            <th>目标地址</th><th class="num">连接</th><th class="num">下行</th><th class="num">上行</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 历史 ===================== -->
+  <section class="panel-page" id="page-history">
+    <div class="card">
+      <div class="card-head">
+        <div><h2>历史流量查询</h2><p class="hint">数据来自本地 SQLite，不受路由器重启影响</p></div>
+      </div>
+      <div class="filters">
+        <div class="field">
+          <label>快捷范围</label>
+          <div class="seg small" id="histQuick">
+            <button data-range="today" class="active">今天</button>
+            <button data-range="yesterday">昨天</button>
+            <button data-range="7d">近 7 天</button>
+            <button data-range="30d">近 30 天</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>开始时间</label>
+          <input type="datetime-local" id="histFrom" step="60" />
+        </div>
+        <div class="field">
+          <label>结束时间</label>
+          <input type="datetime-local" id="histTo" step="60" />
+        </div>
+        <div class="field">
+          <label>查看对象</label>
+          <select id="histMac"><option value="">全部设备（WAN 总流量）</option></select>
+        </div>
+        <div class="field">
+          <label>粒度</label>
+          <select id="histRes">
+            <option value="0">自动</option>
+            <option value="10">10 秒</option>
+            <option value="60">1 分钟</option>
+            <option value="300">5 分钟</option>
+            <option value="3600">1 小时</option>
+            <option value="86400">1 天</option>
+          </select>
+        </div>
+        <div class="field actions">
+          <button class="btn primary" id="btnQuery">查询</button>
+          <button class="btn ghost" id="btnExport">导出 CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cards three">
+      <div class="card mini"><span class="label">区间总下行</span><b id="hDown">—</b></div>
+      <div class="card mini"><span class="label">区间总上行</span><b id="hUp">—</b></div>
+      <div class="card mini"><span class="label">区间峰值（桶内）</span><b id="hPeak">—</b></div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-head">
+        <div><h2 id="histTitle">流量趋势</h2><p class="hint" id="histHint">—</p></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--down)"></i>下行</span>
+          <span><i class="sw" style="background:var(--up)"></i>上行</span>
+        </div>
+      </div>
+      <div class="chart-box" id="chartHistory" style="height:320px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div><h2>明细数据</h2><p class="hint" id="histTableHint">最多显示 200 行</p></div></div>
+      <div class="table-wrap">
+        <table class="grid" id="histTable">
+          <thead><tr><th>时间</th><th class="num">下行</th><th class="num">上行</th><th class="num">合计</th></tr></thead>
+          <tbody><tr><td colspan="4" class="empty">尚未查询</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 诊断 ===================== -->
+  <section class="panel-page" id="page-diag">
+    <div class="cards two">
+      <div class="card">
+        <div class="card-head"><div><h2>采集状态</h2><p class="hint">每轮通过单条 SSH 命令批量取回全部数据</p></div></div>
+        <dl class="kv" id="diagStatus"></dl>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h2>数据库</h2><p class="hint">本地 SQLite，WAL 模式</p></div></div>
+        <dl class="kv" id="diagDb"></dl>
+        <div class="diag-note" id="diagConfig"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>运行日志</h2><p class="hint">最近 120 条，含断线重连与计数器重置事件</p></div></div>
+      <div class="log-list" id="diagEvents"></div>
+    </div>
+  </section>
+</main>
+
+<!-- 设置弹窗 -->
+<div class="modal" id="modalSettings">
+  <div class="modal-box">
+    <div class="modal-head"><h2>设置</h2><button class="icon-btn" id="btnCloseSettings">×</button></div>
+    <div class="modal-body">
+      <div class="field">
+        <label>采集间隔（秒）</label>
+        <input type="number" id="setInterval" min="3" max="300" step="1" />
+        <p class="hint">越小越精细，但路由器负担越重。建议 10 秒。</p>
+      </div>
+      <div class="field">
+        <label>WAN 接口</label>
+        <input type="text" id="setWan" placeholder="留空自动识别（如 pppoe-wan）" />
+        <p class="hint">默认按默认路由自动识别，PPPoE 拨号通常为 pppoe-wan。</p>
+      </div>
+      <div class="field">
+        <label>数据保留天数</label>
+        <input type="number" id="setKeep" min="1" max="3650" />
+        <p class="hint">实时明细固定保留 24 小时，分钟级聚合按此天数保留。</p>
+      </div>
+      <p class="hint" id="cfgPath"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="btnCancelSettings">取消</button>
+      <button class="btn primary" id="btnSaveSettings">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/chartx.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

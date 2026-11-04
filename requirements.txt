@@ -1,0 +1,4 @@
+# 小米万兆路由器 SSH 只提供 ssh-rsa 主机密钥 + aes128-ctr，
+# paramiko 4.0 起彻底移除 ssh-rsa，5.x 也无法连接。
+# 必须锁在 3.4.x，且不要 --upgrade。
+paramiko==3.4.1
